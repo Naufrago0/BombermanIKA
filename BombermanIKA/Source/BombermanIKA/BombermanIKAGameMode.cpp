@@ -1,9 +1,12 @@
 // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
 
 #include "BombermanIKAGameMode.h"
+#include "BombermanIKA.h"
 #include "BombermanIKAPlayerController.h"
 #include "BombermanIKACharacter.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/LocalPlayer.h"
+
 
 ABombermanIKAGameMode::ABombermanIKAGameMode()
 {
@@ -21,6 +24,13 @@ ABombermanIKAGameMode::ABombermanIKAGameMode()
 void ABombermanIKAGameMode::BeginPlay()
 {
 	GenerateLevel();
+
+	// Create second player
+	FString ErrorMsg;
+	GetGameInstance()->CreateLocalPlayer(1, ErrorMsg, true);
+
+	if (!ErrorMsg.IsEmpty())
+		UE_LOG(LogBombermanIKA, Error, TEXT("ERROR: %s"), *ErrorMsg);
 }
 
 void ABombermanIKAGameMode::GenerateLevel()
@@ -36,4 +46,37 @@ void ABombermanIKAGameMode::GenerateLevel()
 			}
 		}
 	}
+}
+
+FString ABombermanIKAGameMode::InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal)
+{
+	ABombermanIKAPlayerController* BIKPC = Cast<ABombermanIKAPlayerController>(NewPlayerController);
+	check(BIKPC != nullptr);
+
+	//Determine using Portal if it's first or second player
+	BIKPC->SetFirstPlayer(Portal == TEXT("P1"));
+
+	return Super::InitNewPlayer(NewPlayerController, UniqueId, Options, Portal);
+}
+
+APlayerController* ABombermanIKAGameMode::Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
+{
+	ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(NewPlayer);
+	check(LocalPlayer != nullptr);
+
+	FString NewPortal(Portal);
+
+	if (NewPortal.IsEmpty())
+	{
+		if (LocalPlayer->GetControllerId() == 0)
+		{
+			NewPortal = TEXT("P1");
+		}
+		else
+		{
+			NewPortal = TEXT("P2");
+		}
+	}
+	
+	return Super::Login(NewPlayer, InRemoteRole, NewPortal, Options, UniqueId, ErrorMessage);
 }

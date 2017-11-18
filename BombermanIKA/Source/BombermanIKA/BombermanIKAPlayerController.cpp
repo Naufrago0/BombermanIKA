@@ -8,8 +8,9 @@
 
 ABombermanIKAPlayerController::ABombermanIKAPlayerController()
 {
-	bShowMouseCursor = true;
-	DefaultMouseCursor = EMouseCursor::Crosshairs;
+	bShowMouseCursor = false;
+	bIsFirstPlayer = true;
+	bIsAlive = true;
 }
 
 void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
@@ -17,9 +18,11 @@ void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
 	Super::PlayerTick(DeltaTime);
 
 	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
+	if (AccumulatedMovement != FVector::ZeroVector)
 	{
-		MoveToMouseCursor();
+		APawn* Pawn = GetPawn();
+		if (Pawn != nullptr)
+			Pawn->AddMovementInput(AccumulatedMovement);
 	}
 }
 
@@ -28,85 +31,79 @@ void ABombermanIKAPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &ABombermanIKAPlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &ABombermanIKAPlayerController::OnSetDestinationReleased);
+	// Player 1 Setup
 
-	// support touch devices 
-	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ABombermanIKAPlayerController::MoveToTouchLocation);
-	InputComponent->BindTouch(EInputEvent::IE_Repeat, this, &ABombermanIKAPlayerController::MoveToTouchLocation);
-
-	InputComponent->BindAction("ResetVR", IE_Pressed, this, &ABombermanIKAPlayerController::OnResetVR);
-}
-
-void ABombermanIKAPlayerController::OnResetVR()
-{
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
-}
-
-void ABombermanIKAPlayerController::MoveToMouseCursor()
-{
-	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+	if (bIsFirstPlayer)
 	{
-		if (ABombermanIKACharacter* MyPawn = Cast<ABombermanIKACharacter>(GetPawn()))
-		{
-			if (MyPawn->GetCursorToWorld())
-			{
-				UNavigationSystem::SimpleMoveToLocation(this, MyPawn->GetCursorToWorld()->GetComponentLocation());
-			}
-		}
+
+		InputComponent->BindAction("MoveUpP1", IE_Pressed, this, &ABombermanIKAPlayerController::OnUpPressed);
+		InputComponent->BindAction("MoveLeftP1", IE_Pressed, this, &ABombermanIKAPlayerController::OnLeftPressed);
+		InputComponent->BindAction("MoveDownP1", IE_Pressed, this, &ABombermanIKAPlayerController::OnDownPressed);
+		InputComponent->BindAction("MoveRightP1", IE_Pressed, this, &ABombermanIKAPlayerController::OnRightPressed);
+
+		InputComponent->BindAction("MoveUpP1", IE_Released, this, &ABombermanIKAPlayerController::OnUpReleased);
+		InputComponent->BindAction("MoveLeftP1", IE_Released, this, &ABombermanIKAPlayerController::OnLeftReleased);
+		InputComponent->BindAction("MoveDownP1", IE_Released, this, &ABombermanIKAPlayerController::OnDownReleased);
+		InputComponent->BindAction("MoveRightP1", IE_Released, this, &ABombermanIKAPlayerController::OnRightReleased);
 	}
+
+	// Player 2 Setup
+
 	else
 	{
-		// Trace to see what is under the mouse cursor
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+		InputComponent->BindAction("MoveUpP2", IE_Pressed, this, &ABombermanIKAPlayerController::OnUpPressed);
+		InputComponent->BindAction("MoveLeftP2", IE_Pressed, this, &ABombermanIKAPlayerController::OnLeftPressed);
+		InputComponent->BindAction("MoveDownP2", IE_Pressed, this, &ABombermanIKAPlayerController::OnDownPressed);
+		InputComponent->BindAction("MoveRightP2", IE_Pressed, this, &ABombermanIKAPlayerController::OnRightPressed);
 
-		if (Hit.bBlockingHit)
-		{
-			// We hit something, move there
-			SetNewMoveDestination(Hit.ImpactPoint);
-		}
+		InputComponent->BindAction("MoveUpP2", IE_Released, this, &ABombermanIKAPlayerController::OnUpReleased);
+		InputComponent->BindAction("MoveLeftP2", IE_Released, this, &ABombermanIKAPlayerController::OnLeftReleased);
+		InputComponent->BindAction("MoveDownP2", IE_Released, this, &ABombermanIKAPlayerController::OnDownReleased);
+		InputComponent->BindAction("MoveRightP2", IE_Released, this, &ABombermanIKAPlayerController::OnRightReleased);
 	}
 }
 
-void ABombermanIKAPlayerController::MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location)
+void ABombermanIKAPlayerController::OnUpPressed()
 {
-	FVector2D ScreenSpaceLocation(Location);
-
-	// Trace to see what is under the touch location
-	FHitResult HitResult;
-	GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
-	if (HitResult.bBlockingHit)
-	{
-		// We hit something, move there
-		SetNewMoveDestination(HitResult.ImpactPoint);
-	}
+	AccumulatedMovement.X += 1.f;
 }
 
-void ABombermanIKAPlayerController::SetNewMoveDestination(const FVector DestLocation)
+void ABombermanIKAPlayerController::OnUpReleased()
 {
-	APawn* const MyPawn = GetPawn();
-	if (MyPawn)
-	{
-		UNavigationSystem* const NavSys = GetWorld()->GetNavigationSystem();
-		float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
-
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if (NavSys && (Distance > 120.0f))
-		{
-			NavSys->SimpleMoveToLocation(this, DestLocation);
-		}
-	}
+	AccumulatedMovement.X -= 1.f;
 }
 
-void ABombermanIKAPlayerController::OnSetDestinationPressed()
+void ABombermanIKAPlayerController::OnLeftPressed()
 {
-	// set flag to keep updating destination until released
-	bMoveToMouseCursor = true;
+	AccumulatedMovement.Y -= 1.f;
 }
 
-void ABombermanIKAPlayerController::OnSetDestinationReleased()
+void ABombermanIKAPlayerController::OnLeftReleased()
 {
-	// clear flag to indicate we should stop updating the destination
-	bMoveToMouseCursor = false;
+	AccumulatedMovement.Y += 1.f;
 }
+
+void ABombermanIKAPlayerController::OnDownPressed()
+{
+	AccumulatedMovement.X -= 1.f;
+}
+
+void ABombermanIKAPlayerController::OnDownReleased()
+{
+	AccumulatedMovement.X += 1.f;
+}
+
+void ABombermanIKAPlayerController::OnRightPressed()
+{
+	AccumulatedMovement.Y += 1.f;
+}
+
+void ABombermanIKAPlayerController::OnRightReleased()
+{
+	AccumulatedMovement.Y -= 1.f;
+}
+
+
+
+
+
