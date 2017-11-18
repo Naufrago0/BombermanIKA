@@ -54,9 +54,38 @@ void ABombermanIKACharacter::Tick(float DeltaSeconds)
 
 void ABombermanIKACharacter::ConfigureP2Character()
 {
-	auto SKMeshComp = Cast<USkeletalMeshComponent>(GetComponentByClass(USkeletalMeshComponent::StaticClass()));
+	auto SKMeshComp = GetMesh();
+	auto CapsuleComp = GetCapsuleComponent();
+
 	if (SKMeshComp != nullptr)
 	{
 		SKMeshComp->SetMaterial(0, P2Material);
+		// Set Collision Object Type to PlayerCharacter2 according to DefaultEngine.ini
+		SKMeshComp->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel2);
+
+		// Collide against player 1
+		SKMeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+		// Ignore other player 2, not likey to happen.
+		SKMeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
+		// Collide agains player 1's bombs
+		SKMeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Block);
+		// Ignore own bombs
+		SKMeshComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel4, ECollisionResponse::ECR_Ignore);
+	}
+
+	// Same collision configuration for capsule component
+	if (CapsuleComp != nullptr)
+	{
+		// Set Collision Object Type to PlayerCharacter2 according to DefaultEngine.ini
+		CapsuleComp->SetCollisionObjectType(ECollisionChannel::ECC_GameTraceChannel2);
+
+		// Collide against player 1
+		CapsuleComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel1, ECollisionResponse::ECR_Block);
+		// Ignore other player 2, not likey to happen.
+		CapsuleComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Ignore);
+		// Collide agains player 1's bombs
+		CapsuleComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Block);
+		// Ignore own bombs
+		CapsuleComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel4, ECollisionResponse::ECR_Ignore);
 	}
 }

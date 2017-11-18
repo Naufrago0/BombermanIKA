@@ -36,18 +36,30 @@ public:
 	 */
 	virtual APlayerController* Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
+	/** Generates a new level */
 	void GenerateLevel();
 
-	UPROPERTY(EditDefaultsOnly)
+	/** Spawn a bomb for the specified player controller */
+	void SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
+
+	FBIKLevelBlock* GetBlockFromLocation(const FVector& Position);
+
+	/** Default class for blocking undestructible blocks */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	UClass* BlockActorClass;
+
+	/** Default class for destructible blocks */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* DestructibleBlockActorClass;
+
+	/** Default actor class for bombs */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* BombActorClass;
 
 protected:
 
-	// Logic structure for all the maps
+	// Logic structure for all the maps, each block tells what is on it
 	FBIKLevelBlock LevelBlocksLogic[LEVEL_WIDTH][LEVEL_HEIGHT];
-
-	// Array of level blocks that need to be updated
-	TArray<FBIKLevelBlock*> UpdateBlocks;
 };
 
 

@@ -5,12 +5,18 @@
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "BombermanIKACharacter.h"
+#include "BombermanIKAGameMode.h"
+#include "BIKLevelBlock.h"
+
+const int32 ABombermanIKAPlayerController::MaxBombs = 5;
 
 ABombermanIKAPlayerController::ABombermanIKAPlayerController()
 {
 	bShowMouseCursor = false;
 	bIsFirstPlayer = true;
 	bIsAlive = true;
+	BombsUpperLimit = 1;
+	Bombs = BombsUpperLimit;
 }
 
 void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
@@ -45,6 +51,8 @@ void ABombermanIKAPlayerController::SetupInputComponent()
 		InputComponent->BindAction("MoveLeftP1", IE_Released, this, &ABombermanIKAPlayerController::OnLeftReleased);
 		InputComponent->BindAction("MoveDownP1", IE_Released, this, &ABombermanIKAPlayerController::OnDownReleased);
 		InputComponent->BindAction("MoveRightP1", IE_Released, this, &ABombermanIKAPlayerController::OnRightReleased);
+
+		InputComponent->BindAction("FireBombP1", IE_Released, this, &ABombermanIKAPlayerController::OnBombFired);
 	}
 
 	// Player 2 Setup
@@ -60,6 +68,8 @@ void ABombermanIKAPlayerController::SetupInputComponent()
 		InputComponent->BindAction("MoveLeftP2", IE_Released, this, &ABombermanIKAPlayerController::OnLeftReleased);
 		InputComponent->BindAction("MoveDownP2", IE_Released, this, &ABombermanIKAPlayerController::OnDownReleased);
 		InputComponent->BindAction("MoveRightP2", IE_Released, this, &ABombermanIKAPlayerController::OnRightReleased);
+
+		InputComponent->BindAction("FireBombP2", IE_Released, this, &ABombermanIKAPlayerController::OnBombFired);
 	}
 }
 
@@ -114,6 +124,26 @@ void ABombermanIKAPlayerController::OnRightReleased()
 	AccumulatedMovement.Y -= 1.f;
 }
 
+void ABombermanIKAPlayerController::OnBombFired()
+{
+	if (Bombs <= 0)
+		return;
+
+	// This is done in the GameMode for comfort, if we had a networked game we must move the SpawnBombForPlayer logic to the GameState
+	auto GameMode = Cast<ABombermanIKAGameMode>(GetWorld()->GetAuthGameMode());
+	if (GameMode != nullptr)
+	{
+		GameMode->SpawnBombForPlayer(this);
+		--Bombs;
+	}
+}
+
+void ABombermanIKAPlayerController::OnBombExploded()
+{
+	// Return one bomb to the bag of bombs
+	++Bombs;
+	FMath::Clamp(Bombs, 0, BombsUpperLimit);
+}
 
 
 

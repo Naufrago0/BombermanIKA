@@ -4,6 +4,7 @@
 #include "BombermanIKA.h"
 #include "BombermanIKAPlayerController.h"
 #include "BombermanIKACharacter.h"
+#include "BIKBombActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/LocalPlayer.h"
 
@@ -88,4 +89,34 @@ APlayerController* ABombermanIKAGameMode::Login(UPlayer* NewPlayer, ENetRole InR
 	}
 	
 	return Super::Login(NewPlayer, InRemoteRole, NewPortal, Options, UniqueId, ErrorMessage);
+}
+
+void ABombermanIKAGameMode::SpawnBombForPlayer(ABombermanIKAPlayerController* PC)
+{
+	check(PC != nullptr);
+
+	auto Character = PC->GetCharacter();
+	if (Character != nullptr)
+	{
+		FVector BombLocation = FBIKLevelBlock::GetBlockCenterFromCurrentLocation(Character->GetActorLocation());
+		FBIKLevelBlock* LevelBlock = GetBlockFromLocation(BombLocation);
+
+		// We can only spawn one bomb in a given level block
+		if (!LevelBlock->IsBombSpawned())
+		{
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.Instigator = Character;
+			FTransform Transform(BombLocation);
+			ABIKBombActor* Bomb = GetWorld()->SpawnActor<ABIKBombActor>(BombActorClass, Transform, SpawnParameters);
+			Bomb->ConfigureBomb(LevelBlock);
+		}
+	}
+}
+
+FBIKLevelBlock* ABombermanIKAGameMode::GetBlockFromLocation(const FVector& Position)
+{
+	int32 Column = FMath::Clamp(FMath::TruncToInt(Position.Y / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_WIDTH);
+	int32 Row = FMath::Clamp(FMath::TruncToInt(Position.X / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_HEIGHT);
+
+	return &LevelBlocksLogic[Column][Row];
 }

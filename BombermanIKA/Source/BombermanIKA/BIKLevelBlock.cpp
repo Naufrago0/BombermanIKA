@@ -1,26 +1,35 @@
 #include "BIKLevelBlock.h"
 #include "BIKLevelBlock.h"
 
-void FBIKLevelBlock::Tick(float DeltaTime)
+const float FBIKLevelBlock::BLOCK_SIZE = 100.f;
+const float FBIKLevelBlock::HALF_BLOCK_SIZE = FBIKLevelBlock::BLOCK_SIZE * .5f;
+
+bool FBIKLevelBlock::IsOnExplosion() const
 {
-	if (OnFireRemainingTime > 0.f)
-	{
-		OnFireRemainingTime -= DeltaTime;
-		if (OnFireRemainingTime <= 0.f)
-		{
-			// Hide "Flames"
-		}
-	}
+	return Explosion != nullptr;
 }
 
-bool FBIKLevelBlock::IsOnFire() const
-{
-	return OnFireRemainingTime > 0.f;
+bool FBIKLevelBlock::IsBombSpawned() const
+{ 
+	return Bomb != nullptr; 
 }
 
-bool FBIKLevelBlock::NeedsTick() const
+void FBIKLevelBlock::ExplosionSpawned(AActor* ExplosionSpawned)
 {
-	return IsOnFire();
+	Bomb = nullptr; // If there is an explosion on the level block we can't have a bomb on it 
+	Explosion = ExplosionSpawned;
 }
 
+FVector FBIKLevelBlock::GetBlockCenterFromCurrentLocation(const FVector& Location)
+{
+	FVector BlockCenter = Location;
+	BlockCenter.X = FMath::TruncToFloat(BlockCenter.X / BLOCK_SIZE) * BLOCK_SIZE - HALF_BLOCK_SIZE;
+	BlockCenter.Y = FMath::TruncToFloat(BlockCenter.Y / BLOCK_SIZE) * BLOCK_SIZE + HALF_BLOCK_SIZE;
 
+	return BlockCenter;
+}
+
+void FBIKLevelBlock::BombSpawned(AActor* SpawnedBomb)
+{
+	Bomb = SpawnedBomb;
+}
