@@ -26,6 +26,7 @@ protected:
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
+	virtual void Possess(class APawn* aPawn) override;
 	// End PlayerController interface
 
 	// Movement management

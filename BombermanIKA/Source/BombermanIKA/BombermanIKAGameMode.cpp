@@ -23,11 +23,20 @@ ABombermanIKAGameMode::ABombermanIKAGameMode()
 
 void ABombermanIKAGameMode::BeginPlay()
 {
+	check(GetGameInstance() != nullptr);
+	check(GetGameInstance()->GetGameViewportClient() != nullptr);
+
+	GetGameInstance()->GetGameViewportClient()->SetDisableSplitscreenOverride(true);
+
 	GenerateLevel();
 
 	// Create second player
 	FString ErrorMsg;
-	GetGameInstance()->CreateLocalPlayer(1, ErrorMsg, true);
+	ULocalPlayer* Player2 = GetGameInstance()->CreateLocalPlayer(1, ErrorMsg, true);
+	if (Player2 != nullptr)
+	{
+		Player2->GetPlayerController(GetWorld());
+	}
 
 	if (!ErrorMsg.IsEmpty())
 		UE_LOG(LogBombermanIKA, Error, TEXT("ERROR: %s"), *ErrorMsg);

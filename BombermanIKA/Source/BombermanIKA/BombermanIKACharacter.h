@@ -17,6 +17,9 @@ public:
 	// Called every frame.
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Set material for player 2 if this is the player 2's character */
+	void ConfigureP2Character();
+
 	/** Returns TopDownCameraComponent subobject **/
 	FORCEINLINE class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
 	/** Returns CameraBoom subobject **/
@@ -30,5 +33,9 @@ private:
 	/** Camera boom positioning the camera above the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
+
+	/** Material used for second player */
+	UPROPERTY(EditAnywhere, Category = "BombermanIKACharacter")
+	class UMaterial* P2Material;
 };
 

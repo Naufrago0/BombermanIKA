@@ -63,6 +63,17 @@ void ABombermanIKAPlayerController::SetupInputComponent()
 	}
 }
 
+void ABombermanIKAPlayerController::Possess(class APawn* aPawn)
+{
+	ABombermanIKACharacter* Character = Cast<ABombermanIKACharacter>(aPawn);
+	if (Character != nullptr && !bIsFirstPlayer)
+	{
+		Character->ConfigureP2Character();
+	}
+
+	Super::Possess(aPawn);
+}
+
 void ABombermanIKAPlayerController::OnUpPressed()
 {
 	AccumulatedMovement.X += 1.f;

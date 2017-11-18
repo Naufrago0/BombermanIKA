@@ -18,7 +18,12 @@ class ABombermanIKAGameMode : public AGameModeBase
 public:
 	ABombermanIKAGameMode();
 
+	/**
+	 * Construct level and spawn players
+	 */
 	virtual void BeginPlay() override;
+
+
 	/**
 	 * Overriden to configure the player controller to be the first player's player controller or the second player's player controller using the Portal string.
 	 * The portal string is used to differentiate players because the game mode finds APlayerStart actors using this portal string, so we can assign each character

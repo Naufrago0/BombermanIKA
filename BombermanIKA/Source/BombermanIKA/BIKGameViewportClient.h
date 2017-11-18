@@ -11,6 +11,7 @@ class UBIKGameViewportClient : public UGameViewportClient
 {
 	GENERATED_BODY()
 
+public:
 	/** 
 	 * Overriden InputKey method to pass keyboard input to all local player controllers and allow "couch" multiplayer to work
 	 */
