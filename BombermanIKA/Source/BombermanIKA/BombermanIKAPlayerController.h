@@ -19,6 +19,9 @@ public:
 
 	void OnBombExploded();
 
+	// Gameplay utility methods
+	FORCEINLINE int32 GetBombBlockRadius() const { return BombBlockRadius; }
+
 protected:
 	FVector AccumulatedMovement;
 
@@ -35,14 +38,15 @@ protected:
 	// Maximum number of bombs defined for the game
 	static const int32 MaxBombs;
 
+	// Explosion radius in blocks that the bombs spawned by this player has.
+	int32 BombBlockRadius;
+
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
 	virtual void Possess(class APawn* aPawn) override;
 	// End PlayerController interface
 
-	// Gameplay utility methods
-	
 	// Movement management
 	void OnUpPressed();
 	void OnUpReleased();

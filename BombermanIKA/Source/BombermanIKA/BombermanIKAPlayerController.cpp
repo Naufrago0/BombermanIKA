@@ -17,6 +17,7 @@ ABombermanIKAPlayerController::ABombermanIKAPlayerController()
 	bIsAlive = true;
 	BombsUpperLimit = 1;
 	Bombs = BombsUpperLimit;
+	BombBlockRadius = 1;
 }
 
 void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
@@ -142,7 +143,7 @@ void ABombermanIKAPlayerController::OnBombExploded()
 {
 	// Return one bomb to the bag of bombs
 	++Bombs;
-	FMath::Clamp(Bombs, 0, BombsUpperLimit);
+	Bombs = FMath::Clamp(Bombs, 0, BombsUpperLimit);
 }
 
 

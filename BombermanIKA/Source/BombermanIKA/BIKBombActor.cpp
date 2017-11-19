@@ -1,6 +1,7 @@
 #include "BIKBombActor.h"
 #include "BombermanIKAPlayerController.h"
 #include "BombermanIKACharacter.h"
+#include "BombermanIKAGameMode.h"
 #include "BIKLevelBlock.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -8,12 +9,13 @@ ABIKBombActor::ABIKBombActor()
 {
 	LevelBlock = nullptr;
 	RemainingSeconds = 0.f;
+	BombBlockRadius = 1;
 
 	//Enable tick for this class of actors
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg)
+void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg, int32 BombBlockRadiusArg)
 {
 	check(LevelBlockArg != nullptr);
 	auto BIKCharacter = Cast<ABombermanIKACharacter>(Instigator);
@@ -38,6 +40,8 @@ void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg)
 
 	// Set time to explosion
 	RemainingSeconds = TimeToExplosionSeconds;
+	// Configure the bomb radius
+	BombBlockRadius = BombBlockRadiusArg;
 }
 
 void ABIKBombActor::Tick(float DeltaSeconds)
@@ -50,12 +54,20 @@ void ABIKBombActor::Tick(float DeltaSeconds)
 			ExplodeBomb();
 		}
 	}
+
+	// If the block where the bomb is explodes, explode the bomb
+	if (LevelBlock->IsOnExplosion() && !IsActorBeingDestroyed())
+	{
+		ExplodeBomb();
+	}
 }
 
 void ABIKBombActor::ExplodeBomb()
 {
-	// TODO Calculate all level blocks affected
-	LevelBlock->ExplosionSpawned(nullptr); //TODO pass the explosion created
+	auto GameMode = Cast<ABombermanIKAGameMode>(GetWorld()->GetAuthGameMode());
+	check(GameMode != nullptr);
+
+	GameMode->ExplodeBomb(this);
 	auto BIKPC = Cast<ABombermanIKAPlayerController>(Instigator->GetController());
 	check(BIKPC != nullptr);
 	BIKPC->OnBombExploded();

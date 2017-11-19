@@ -5,6 +5,7 @@
 #include "BombermanIKAPlayerController.h"
 #include "BombermanIKACharacter.h"
 #include "BIKBombActor.h"
+#include "BIKExplosionActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/LocalPlayer.h"
 
@@ -52,7 +53,7 @@ void ABombermanIKAGameMode::GenerateLevel()
 			if ((i & 1) && (j & 1))
 			{
 				FVector Location(j * -100.f - 50.f, i * 100.f + 50.f, 100.f);
-				LevelBlocksLogic[i][j].Block = GetWorld()->SpawnActor(BlockActorClass, &Location);
+				LevelBlocksLogic[i][j].IndestructibleBlock = GetWorld()->SpawnActor(BlockActorClass, &Location);
 			}
 		}
 	}
@@ -108,15 +109,118 @@ void ABombermanIKAGameMode::SpawnBombForPlayer(ABombermanIKAPlayerController* PC
 			SpawnParameters.Instigator = Character;
 			FTransform Transform(BombLocation);
 			ABIKBombActor* Bomb = GetWorld()->SpawnActor<ABIKBombActor>(BombActorClass, Transform, SpawnParameters);
-			Bomb->ConfigureBomb(LevelBlock);
+			Bomb->ConfigureBomb(LevelBlock, PC->GetBombBlockRadius());
 		}
 	}
 }
 
 FBIKLevelBlock* ABombermanIKAGameMode::GetBlockFromLocation(const FVector& Position)
 {
-	int32 Column = FMath::Clamp(FMath::TruncToInt(Position.Y / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_WIDTH);
-	int32 Row = FMath::Clamp(FMath::TruncToInt(Position.X / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_HEIGHT);
+	int32 Column = INDEX_NONE; 
+	int32 Row = INDEX_NONE; 
+
+	GetBlockIndexesFromLocation(Position, Row, Column);
 
 	return &LevelBlocksLogic[Column][Row];
+}
+
+void ABombermanIKAGameMode::GetBlockIndexesFromLocation(const FVector& Position, int32& Row, int32& Column)
+{
+	Column = FMath::Clamp(FMath::TruncToInt(FMath::Abs(Position.Y) / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_WIDTH);
+	Row = FMath::Clamp(FMath::TruncToInt(FMath::Abs(Position.X) / FBIKLevelBlock::BLOCK_SIZE), 0, LEVEL_HEIGHT);
+}
+
+void ABombermanIKAGameMode::ExplodeBomb(ABIKBombActor* ExplodedBomb)
+{
+	check(ExplodedBomb != nullptr);
+	int32 Radius = ExplodedBomb->GetBombBlockRadius();
+
+	struct FFoundLevelBlock
+	{
+		FBIKLevelBlock* LevelBlock;
+		int32 Row;
+		int32 Col;
+		int32 DistanceFromBomb;
+
+		FFoundLevelBlock(FBIKLevelBlock* LevelBlockArg, const int32 RowArg, const int32 ColArg, const int32 DistanceFromBombArg)
+			: LevelBlock(LevelBlockArg)
+			, Row(RowArg)
+			, Col(ColArg)
+			, DistanceFromBomb(DistanceFromBombArg)
+		{
+		}
+	};
+
+	TArray<FFoundLevelBlock> ExplodedLevelBlocks;
+	FVector BombLocation = ExplodedBomb->GetActorLocation();
+	int32 InitialRow;
+	int32 InitialCol;
+	GetBlockIndexesFromLocation(BombLocation, InitialRow, InitialCol);
+
+	//Add the level block where the bomb is standing to the list of exploded blocks
+	FBIKLevelBlock* BombBlock = GetBlockFromLocation(BombLocation);
+	// Remove the bomb from its block so we don't explode it again
+	BombBlock->Bomb = nullptr;
+	ExplodedLevelBlocks.Add(FFoundLevelBlock(BombBlock, InitialRow, InitialCol, 0));
+
+	//This array specifies how to increase row and column indexes to check the four directions
+	struct FDirInc
+	{
+		int32 RowInc;
+		int32 ColInc;
+	};
+
+	//                                         UP      LEFT     DOWN    RIGHT
+	static const FDirInc RowColIndexesInc[]{ {-1, 0}, {0, -1}, {1, 0}, {0, 1} };
+
+	int32 CurrentRow;
+	int32 CurrentCol;
+	for (int32 i = 0; i < 4; ++i)
+	{
+		for (int32 CurrentRadius = 1; CurrentRadius <= Radius; ++CurrentRadius)
+		{
+			CurrentRow = InitialRow + RowColIndexesInc[i].RowInc * CurrentRadius;
+			CurrentCol = InitialCol + RowColIndexesInc[i].ColInc * CurrentRadius;
+
+			//Check if we are looking outside the map
+			if (CurrentRow < 0 || CurrentRow >= LEVEL_HEIGHT || CurrentCol < 0 || CurrentCol >= LEVEL_WIDTH)
+				break;
+
+			FBIKLevelBlock& CheckedBlock = LevelBlocksLogic[CurrentCol][CurrentRow];
+			// If we find an undestructible block, stop exploding in this direction
+			if (CheckedBlock.IsIndestructible())
+				break;
+
+			// Calculate distance from bomb to exploded level block in blocks
+			int32 DistanceFromBomb = FMath::Max(FMath::Abs(CurrentRow - InitialRow), FMath::Abs(CurrentCol - InitialCol));
+
+			// If we find a destructible block, stop exploding in this direction, but explode the found block
+			if (CheckedBlock.IsDestroyable())
+			{
+				ExplodedLevelBlocks.Add(FFoundLevelBlock(&CheckedBlock, CurrentRow, CurrentCol, DistanceFromBomb));
+				break;
+			}
+
+			// In any other case add the level block to be exploded and continue checking blocks in this direction
+			ExplodedLevelBlocks.Add(FFoundLevelBlock(&CheckedBlock, CurrentRow, CurrentCol, DistanceFromBomb));
+		}
+	}
+
+	// Check all the marked as exploded blocks to take the right action
+	for (auto It = ExplodedLevelBlocks.CreateIterator(); It; ++It)
+	{
+		// If the block is already exploding, just reset the time of explosion
+		if (It->LevelBlock->IsOnExplosion())
+		{
+			It->LevelBlock->Explosion->SetExplosionSeconds(DefaultExplosionSeconds);
+		}
+		// Create a new explosion actor in the block
+		else
+		{
+			FVector ExplosionLocation = FBIKLevelBlock::GetBlockCenterFromRowColIndexes(It->Row, It->Col);
+			FTransform Transform(ExplosionLocation);
+			It->LevelBlock->Explosion = GetWorld()->SpawnActor<ABIKExplosionActor>(ExplosionActorClass, Transform);
+			It->LevelBlock->Explosion->ConfigureExplosion(It->LevelBlock, DefaultDelaySecondsPerBlock * It->DistanceFromBomb, DefaultExplosionSeconds);
+		}
+	}
 }

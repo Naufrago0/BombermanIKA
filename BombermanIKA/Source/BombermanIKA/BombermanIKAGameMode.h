@@ -42,7 +42,12 @@ public:
 	/** Spawn a bomb for the specified player controller */
 	void SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
 
+	/** Process bomb explosion, creates explosion actors and update level accrodingly*/
+	void ExplodeBomb(class ABIKBombActor* ExplodedBomb);
+
 	FBIKLevelBlock* GetBlockFromLocation(const FVector& Position);
+
+	void GetBlockIndexesFromLocation(const FVector& Position, int32& Row, int32& Column);
 
 	/** Default class for blocking undestructible blocks */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
@@ -55,6 +60,30 @@ public:
 	/** Default actor class for bombs */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	UClass* BombActorClass;
+
+	/** Default class for explosion actor*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* ExplosionActorClass;
+
+	/** Default class for power up that increases explosion radius*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* ExplosionRadiusPowerUpActorClass;
+
+	/** Default class for power up that increases number of available bombs*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* ExtraBombPowerUpActorClass;
+
+	/** Default class for power up that enables remote controller for placed bombs*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* RemoteControlPowerUpActorClass;
+
+	/** Default time in seconds an explosion lasts */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	float DefaultExplosionSeconds;
+
+	/** Default delay in seconds to spawn explosion for each block of distance to the originating bomb*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	float DefaultDelaySecondsPerBlock;
 
 protected:
 
