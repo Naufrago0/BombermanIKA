@@ -39,11 +39,14 @@ public:
 	/** Generates a new level */
 	void GenerateLevel();
 
-	/** Spawn a bomb for the specified player controller */
-	void SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
+	/** Spawn a bomb for the specified player controller, return true if the bomb was successfully planted, false elsewhere */
+	bool SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
 
 	/** Process bomb explosion, creates explosion actors and update level accrodingly*/
 	void ExplodeBomb(class ABIKBombActor* ExplodedBomb);
+
+	/** Spawn a random powerup with a configured probability */
+	void SpawnRandomPowerUp(const FVector& Location);
 
 	FBIKLevelBlock* GetBlockFromLocation(const FVector& Position);
 
@@ -77,6 +80,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	UClass* RemoteControlPowerUpActorClass;
 
+	/** Default class for power up that enables remote controller for placed bombs*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* SpeedUpPowerUpActorClass;
+
 	/** Default time in seconds an explosion lasts */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	float DefaultExplosionSeconds;
@@ -84,6 +91,14 @@ public:
 	/** Default delay in seconds to spawn explosion for each block of distance to the originating bomb*/
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	float DefaultDelaySecondsPerBlock;
+
+	/** Probability of a destructible block to spawn a powerup */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float SpawnPowerUpProbability;
+
+	/** Number of destructible blocks to create when generating the level */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	int32 DestructibleBlocks;
 
 protected:
 

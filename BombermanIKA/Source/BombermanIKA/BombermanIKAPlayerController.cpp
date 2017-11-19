@@ -1,14 +1,17 @@
 // Copyright 1998-2017 Epic Games, Inc. All Rights Reserved.
 
 #include "BombermanIKAPlayerController.h"
-#include "AI/Navigation/NavigationSystem.h"
-#include "Runtime/Engine/Classes/Components/DecalComponent.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "BombermanIKACharacter.h"
 #include "BombermanIKAGameMode.h"
 #include "BIKLevelBlock.h"
+#include "BIKPowerUpActor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 const int32 ABombermanIKAPlayerController::MaxBombs = 5;
+const int32 ABombermanIKAPlayerController::MaxBombBlockRadius = 5;
+const float ABombermanIKAPlayerController::NormalWalkSpeed = 400.f;
+const float ABombermanIKAPlayerController::PowerUpWalkSpeed = 600.f;
+const float ABombermanIKAPlayerController::RemoteControlDurationSeconds = 15.f;
 
 ABombermanIKAPlayerController::ABombermanIKAPlayerController()
 {
@@ -18,6 +21,7 @@ ABombermanIKAPlayerController::ABombermanIKAPlayerController()
 	BombsUpperLimit = 1;
 	Bombs = BombsUpperLimit;
 	BombBlockRadius = 1;
+	RemoteControlSeconds = 0.f;
 }
 
 void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
@@ -27,9 +31,19 @@ void ABombermanIKAPlayerController::PlayerTick(float DeltaTime)
 	// keep updating the destination every tick while desired
 	if (AccumulatedMovement != FVector::ZeroVector)
 	{
-		APawn* Pawn = GetPawn();
-		if (Pawn != nullptr)
-			Pawn->AddMovementInput(AccumulatedMovement);
+		ACharacter* Character = GetCharacter();
+		if (Character != nullptr)
+			Character->AddMovementInput(AccumulatedMovement);
+	}
+
+	auto GameMode = Cast<ABombermanIKAGameMode>(GetWorld()->GetAuthGameMode());
+	check(GameMode != nullptr);
+	ACharacter* Character = GetCharacter();
+	check(Character != nullptr);
+	FBIKLevelBlock* LevelBlock = GameMode->GetBlockFromLocation(Character->GetActorLocation());
+	if (LevelBlock->IsPowerUp())
+	{
+		LevelBlock->PowerUp->TakePowerUp(this);
 	}
 }
 
@@ -134,8 +148,8 @@ void ABombermanIKAPlayerController::OnBombFired()
 	auto GameMode = Cast<ABombermanIKAGameMode>(GetWorld()->GetAuthGameMode());
 	if (GameMode != nullptr)
 	{
-		GameMode->SpawnBombForPlayer(this);
-		--Bombs;
+		if(GameMode->SpawnBombForPlayer(this))
+			--Bombs; // Only discount bomb if it was successfully planted.
 	}
 }
 
@@ -146,6 +160,43 @@ void ABombermanIKAPlayerController::OnBombExploded()
 	Bombs = FMath::Clamp(Bombs, 0, BombsUpperLimit);
 }
 
+void ABombermanIKAPlayerController::ApplyPowerUp(EPowerUpType PowerUpType)
+{
+	ACharacter* Character = nullptr;
 
+	switch (PowerUpType)
+	{
+		case EPowerUpType::ExtraBomb:
+			//Increase current account of bombd and bomb limit
+			if (BombsUpperLimit < MaxBombs)
+			{
+				++Bombs;
+				++BombsUpperLimit;
+			}
+			break;
+		case EPowerUpType::ExtraExplosion:
+			if (BombBlockRadius < MaxBombBlockRadius)
+			{
+				++BombBlockRadius;
+			}
+			break;
+		case EPowerUpType::SpeedUp:
+			Character = GetCharacter();
+			if (Character != nullptr)
+			{
+				auto MovComp = Character->GetCharacterMovement();
+				if (MovComp != nullptr)
+				{
+					MovComp->MaxWalkSpeed = PowerUpWalkSpeed;
+				}
+			}
+			break;
+		case EPowerUpType::RemoteControl:
+			RemoteControlSeconds = RemoteControlDurationSeconds;
+			break;
+		default:
+			break;
+	}
+}
 
 

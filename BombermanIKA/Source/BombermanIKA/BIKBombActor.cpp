@@ -7,7 +7,6 @@
 
 ABIKBombActor::ABIKBombActor()
 {
-	LevelBlock = nullptr;
 	RemainingSeconds = 0.f;
 	BombBlockRadius = 1;
 
@@ -34,7 +33,7 @@ void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg, int32 Bo
 	}
 
 	// Store the level block the bomb is on
-	LevelBlock = LevelBlockArg;
+	SetLevelBlock(LevelBlockArg);
 
 	LevelBlock->BombSpawned(this);
 
@@ -56,7 +55,7 @@ void ABIKBombActor::Tick(float DeltaSeconds)
 	}
 
 	// If the block where the bomb is explodes, explode the bomb
-	if (LevelBlock->IsOnExplosion() && !IsActorBeingDestroyed())
+	if (!IsActorBeingDestroyed() && LevelBlock->IsOnExplosion())
 	{
 		ExplodeBomb();
 	}
@@ -71,5 +70,7 @@ void ABIKBombActor::ExplodeBomb()
 	auto BIKPC = Cast<ABombermanIKAPlayerController>(Instigator->GetController());
 	check(BIKPC != nullptr);
 	BIKPC->OnBombExploded();
+	LevelBlock->Bomb = nullptr;
+	LevelBlock = nullptr;
 	Destroy();
 }

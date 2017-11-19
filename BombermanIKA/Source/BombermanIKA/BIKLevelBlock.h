@@ -15,11 +15,11 @@ struct FBIKLevelBlock
 
 	/** Destructible Block that occupies this level block if exists */
 	UPROPERTY()
-	AActor* DestroyableBlock;
+	class ABIKDestructibleBlockActor* DestroyableBlock;
 
 	/** Power-up actor over this block if exists*/
 	UPROPERTY()
-	AActor* PowerUp;
+	class ABIKPowerUpActor* PowerUp;
 
 	/** "Flames" actor that must shown when this block is on fire due to a bomb*/
 	UPROPERTY()
