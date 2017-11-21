@@ -9,3 +9,7 @@
 ## Time Taken:
 
 15 Hours.
+
+## Game Build:
+
+Game Build is distributed in a chunked zip: [Part1](Build.zip.001) [Part2](Build.zip.002) [Part3](Build.zip.003)
