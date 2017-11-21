@@ -13,3 +13,5 @@
 ## Game Build:
 
 Game Build is distributed in a chunked zip: [Part1](Build.zip.001) [Part2](Build.zip.002) [Part3](Build.zip.003)
+
+Project source is in this other zip file: [Project Sources](BombermanIKAProject.zip)
