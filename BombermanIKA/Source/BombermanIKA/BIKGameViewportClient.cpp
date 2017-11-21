@@ -1,4 +1,5 @@
 #include "BIKGameViewportClient.h"
+#include "BombermanIKAGameMode.h"
 #include "Engine.h"
 
 bool UBIKGameViewportClient::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad)
@@ -22,5 +23,51 @@ bool UBIKGameViewportClient::InputKey(FViewport* Viewport, int32 ControllerId, F
 		}
 
 		return bResult;
+	}
+}
+
+void UBIKGameViewportClient::LostFocus(FViewport* Viewport)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = nullptr;
+	ABombermanIKAGameMode* GameMode = nullptr;
+	if (GameInstance != nullptr)
+	{
+		World = GameInstance->GetWorld();
+	}
+
+	if (World != nullptr)
+	{
+		GameMode = Cast<ABombermanIKAGameMode>(World->GetAuthGameMode());
+	}
+
+	if (GameMode != nullptr)
+	{
+		GameMode->OnApplicationLostFocus();
+	}
+
+	Super::LostFocus(Viewport);
+}
+
+void UBIKGameViewportClient::ReceivedFocus(FViewport* Viewport)
+{
+	Super::ReceivedFocus(Viewport);
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UWorld* World = nullptr;
+	ABombermanIKAGameMode* GameMode = nullptr;
+	if (GameInstance != nullptr)
+	{
+		World = GameInstance->GetWorld();
+	}
+
+	if (World != nullptr)
+	{
+		GameMode = Cast<ABombermanIKAGameMode>(World->GetAuthGameMode());
+	}
+
+	if (GameMode != nullptr)
+	{
+		GameMode->OnApplicationReceivedFocus();
 	}
 }

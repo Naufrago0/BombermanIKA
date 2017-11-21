@@ -10,7 +10,7 @@
 #define LEVEL_WIDTH 27
 #define LEVEL_HEIGHT 13
 
-UCLASS(minimalapi)
+UCLASS(BlueprintType)
 class ABombermanIKAGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
@@ -22,6 +22,8 @@ public:
 	 * Construct level and spawn players
 	 */
 	virtual void BeginPlay() override;
+
+ 	virtual void Tick(float DeltaTime) override;
 
 
 	/**
@@ -37,10 +39,10 @@ public:
 	virtual APlayerController* Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
 	/** Generates a new level */
-	void GenerateLevel();
+	void GenerateBlockLevel();
 
 	/** Spawn a bomb for the specified player controller, return true if the bomb was successfully planted, false elsewhere */
-	bool SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
+	class ABIKBombActor* SpawnBombForPlayer(class ABombermanIKAPlayerController* PC);
 
 	/** Process bomb explosion, creates explosion actors and update level accrodingly*/
 	void ExplodeBomb(class ABIKBombActor* ExplodedBomb);
@@ -51,6 +53,24 @@ public:
 	FBIKLevelBlock* GetBlockFromLocation(const FVector& Position);
 
 	void GetBlockIndexesFromLocation(const FVector& Position, int32& Row, int32& Column);
+
+	void UpdateHUDScore(const int32 PlayerIndex, const int32 Score);
+
+	void UpdateHUDBombs(const int32 PlayerIndex, const int32 CurrentBombs, const int32 TotalBombs);
+
+	void UpdateHUDBlast(const int32 PlayerIndex, const FString& Blast);
+
+	void UpdateHUDRemoteControlTime(const int32 PlayerIndex, const float RemoteControlTime);
+
+	void PlayerDied(ABombermanIKAPlayerController* PC);
+
+	void EndRound();
+
+	void ResetBlockLevel();
+
+	void OnApplicationLostFocus();
+
+	void OnApplicationReceivedFocus();
 
 	/** Default class for blocking undestructible blocks */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
@@ -84,6 +104,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	UClass* SpeedUpPowerUpActorClass;
 
+	/** Ui widget that is the menu for the game*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	UClass* InGameMenuWidgetClass;
+
+	/** Time in seconds since the bomb is planted until it explodes*/
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	float TimeToExplosionSeconds;
+
 	/** Default time in seconds an explosion lasts */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	float DefaultExplosionSeconds;
@@ -91,6 +119,14 @@ public:
 	/** Default delay in seconds to spawn explosion for each block of distance to the originating bomb*/
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	float DefaultDelaySecondsPerBlock;
+
+	/** Duration of the remote control power up */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	float RemoteControlDurationSeconds;
+
+	/** Duration of the round */
+	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
+	float RoundDurationSeconds;
 
 	/** Probability of a destructible block to spawn a powerup */
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
@@ -100,10 +136,25 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "BombermanIKA")
 	int32 DestructibleBlocks;
 
+	/** Time to wait before declaring a winner*/
+	float DyingTime;
+
+	/** Remaining seconds to end the round */
+	float RoundTime;
+
+	/** Loser of the round*/
+	UPROPERTY()
+	class ABombermanIKAPlayerController* Loser;
+
+	bool bSetFocusNextTick;
+
 protected:
 
 	// Logic structure for all the maps, each block tells what is on it
 	FBIKLevelBlock LevelBlocksLogic[LEVEL_WIDTH][LEVEL_HEIGHT];
+
+	UPROPERTY()
+	class UBIKMenu* InGameMenu;
 };
 
 

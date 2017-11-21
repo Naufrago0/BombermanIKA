@@ -24,7 +24,9 @@ public:
 	ABombermanIKAPlayerController();
 
 	FORCEINLINE void SetFirstPlayer(bool bIsFirstPlayerArg) { bIsFirstPlayer = bIsFirstPlayerArg; }
-	FORCEINLINE bool IsFirstPlayer() const { return bIsFirstPlayer; }
+	
+	UFUNCTION(BlueprintPure)
+	bool IsFirstPlayer() const;
 
 	void OnBombExploded();
 
@@ -36,8 +38,25 @@ public:
 	/** Apply the corresponding powerup to the player */
 	void ApplyPowerUp(EPowerUpType PowerUpType);
 
+	void UpdateHUDScore();
+
+	void UpdateHUDBombs();
+
+	void UpdateHUDBlast();
+
+	void UpdateHUDRemoteControlTime();
+
+	void ResetMovement();
+
+	void ResetPC();
+
+	FORCEINLINE bool IsAlive() const { return bIsAlive; }
+
+	FORCEINLINE bool IsRemoteControlling() const { return RemoteControlSeconds > 0.f; }
+
 protected:
 	FVector AccumulatedMovement;
+	bool UpPressed, LeftPressed, DownPressed, RightPressed;
 
 	bool bIsFirstPlayer;
 
@@ -67,8 +86,9 @@ protected:
 	/** Remaining time for the remote control powerup effect*/
 	float RemoteControlSeconds;
 
-	/** Duration of the remote control effect */
-	static const float RemoteControlDurationSeconds;
+	/** Remote controlled bomb if exists */
+	UPROPERTY()
+	class ABIKBombActor* RemoteBomb;
 
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;

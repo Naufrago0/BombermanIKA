@@ -7,7 +7,9 @@
 #include "BIKBombActor.h"
 #include "BIKExplosionActor.h"
 #include "BIKPowerUpActor.h"
+#include "BIKPlayerState.h"
 #include "BIKDestructibleBlockActor.h"
+#include "BIKMenu.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/LocalPlayer.h"
 
@@ -16,6 +18,7 @@ ABombermanIKAGameMode::ABombermanIKAGameMode()
 {
 	// use our custom PlayerController class
 	PlayerControllerClass = ABombermanIKAPlayerController::StaticClass();
+	PlayerStateClass = ABIKPlayerState::StaticClass();
 
 	// set default pawn class to our Blueprinted character
 	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnBPClass(TEXT("/Game/TopDownCPP/Blueprints/TopDownCharacter"));
@@ -23,33 +26,25 @@ ABombermanIKAGameMode::ABombermanIKAGameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+	RoundTime = 0.f;
+	PrimaryActorTick.bCanEverTick = true;
+	bSetFocusNextTick = false;
 }
 
 void ABombermanIKAGameMode::BeginPlay()
 {
+	Super::BeginPlay();
+
+#if !WITH_EDITOR
+	GetWorld()->Exec(GetWorld(), TEXT("r.setres 1280x720w"));
+#endif
+
 	check(GetGameInstance() != nullptr);
 	check(GetGameInstance()->GetGameViewportClient() != nullptr);
 
 	GetGameInstance()->GetGameViewportClient()->SetDisableSplitscreenOverride(true);
 
-	GenerateLevel();
-
-	// Create second player
-	FString ErrorMsg;
-	ULocalPlayer* Player2 = GetGameInstance()->CreateLocalPlayer(1, ErrorMsg, true);
-	if (Player2 != nullptr)
-	{
-		Player2->GetPlayerController(GetWorld());
-	}
-
-	if (!ErrorMsg.IsEmpty())
-		UE_LOG(LogBombermanIKA, Error, TEXT("ERROR: %s"), *ErrorMsg);
-}
-
-void ABombermanIKAGameMode::GenerateLevel()
-{
-	DestructibleBlocks = FMath::Clamp(DestructibleBlocks, 0, 90);
-
+	// Create indestructible blocks
 	for (int32 i = 0; i < LEVEL_WIDTH; ++i)
 	{
 		for (int32 j = 0; j < LEVEL_HEIGHT; ++j)
@@ -61,6 +56,51 @@ void ABombermanIKAGameMode::GenerateLevel()
 			}
 		}
 	}
+
+	GenerateBlockLevel();
+
+	// Init round time
+	RoundTime = RoundDurationSeconds;
+
+	// Create second player
+	FString ErrorMsg;
+	ULocalPlayer* Player1 = GetGameInstance()->GetLocalPlayerByIndex(0);
+	check(Player1 != nullptr);
+	
+	ULocalPlayer* Player2 = GetGameInstance()->CreateLocalPlayer(1, ErrorMsg, true);
+	check(Player2 != nullptr);
+
+	if (!ErrorMsg.IsEmpty())
+		UE_LOG(LogBombermanIKA, Error, TEXT("ERROR: %s"), *ErrorMsg);
+
+	//Initialize UI
+	InGameMenu = CreateWidget<UBIKMenu>(GetWorld(), InGameMenuWidgetClass);
+	check(InGameMenu != nullptr);
+	InGameMenu->InitializeMenu();
+	InGameMenu->AddToViewport();
+	InGameMenu->SetKeyboardFocus();
+	InGameMenu->SetUserFocus(Player1->GetPlayerController(GetWorld()));
+
+	// Pause game until is started from UI
+	Player1->GetPlayerController(GetWorld())->SetPause(true);
+
+	// Show initial values in UI
+	ABombermanIKAPlayerController* PC1 = Cast<ABombermanIKAPlayerController>(Player1->GetPlayerController(GetWorld()));
+	PC1->UpdateHUDBombs();
+	PC1->UpdateHUDBlast();
+	PC1->UpdateHUDScore();
+	PC1->UpdateHUDRemoteControlTime();
+
+	ABombermanIKAPlayerController* PC2 = Cast<ABombermanIKAPlayerController>(Player2->GetPlayerController(GetWorld()));
+	PC2->UpdateHUDBombs();
+	PC2->UpdateHUDBlast();
+	PC2->UpdateHUDScore();
+	PC2->UpdateHUDRemoteControlTime();
+}
+
+void ABombermanIKAGameMode::GenerateBlockLevel()
+{
+	DestructibleBlocks = FMath::Clamp(DestructibleBlocks, 0, 90);
 
 	int32 RemainingDestructibleBlocks = DestructibleBlocks;
 	while (RemainingDestructibleBlocks > 0)
@@ -124,7 +164,7 @@ APlayerController* ABombermanIKAGameMode::Login(UPlayer* NewPlayer, ENetRole InR
 	return Super::Login(NewPlayer, InRemoteRole, NewPortal, Options, UniqueId, ErrorMessage);
 }
 
-bool ABombermanIKAGameMode::SpawnBombForPlayer(ABombermanIKAPlayerController* PC)
+ABIKBombActor* ABombermanIKAGameMode::SpawnBombForPlayer(ABombermanIKAPlayerController* PC)
 {
 	check(PC != nullptr);
 
@@ -141,12 +181,12 @@ bool ABombermanIKAGameMode::SpawnBombForPlayer(ABombermanIKAPlayerController* PC
 			SpawnParameters.Instigator = Character;
 			FTransform Transform(BombLocation);
 			ABIKBombActor* Bomb = GetWorld()->SpawnActor<ABIKBombActor>(BombActorClass, Transform, SpawnParameters);
-			Bomb->ConfigureBomb(LevelBlock, PC->GetBombBlockRadius());
-			return true;
+			Bomb->ConfigureBomb(LevelBlock, PC->GetBombBlockRadius(), PC->IsRemoteControlling() ? 0.f : TimeToExplosionSeconds);
+			return Bomb;
 		}
 	}
 
-	return false;
+	return nullptr;
 }
 
 FBIKLevelBlock* ABombermanIKAGameMode::GetBlockFromLocation(const FVector& Position)
@@ -277,4 +317,211 @@ void ABombermanIKAGameMode::SpawnRandomPowerUp(const FVector& Location)
 		LevelBlock->PowerUp = GetWorld()->SpawnActor<ABIKPowerUpActor>(PowerUpClasses[PowerUpSelected], Transform);
 		LevelBlock->PowerUp->ConfigurePowerUp(LevelBlock, PowerUpTypes[PowerUpSelected]);
 	}
+}
+
+void ABombermanIKAGameMode::UpdateHUDScore(const int32 PlayerIndex, const int32 Score)
+{
+	InGameMenu->UpdateScore(PlayerIndex, Score);
+}
+
+void ABombermanIKAGameMode::UpdateHUDBombs(const int32 PlayerIndex, const int32 CurrentBombs, const int32 TotalBombs)
+{
+	InGameMenu->UpdateBombs(PlayerIndex, CurrentBombs, TotalBombs);
+}
+
+void ABombermanIKAGameMode::UpdateHUDBlast(const int32 PlayerIndex, const FString& Blast)
+{
+	InGameMenu->UpdateBlast(PlayerIndex, Blast);
+}
+
+void ABombermanIKAGameMode::UpdateHUDRemoteControlTime(const int32 PlayerIndex, const float RemoteControlTime)
+{
+	InGameMenu->UpdateRemoteControlTime(PlayerIndex, RemoteControlTime);
+}
+
+void ABombermanIKAGameMode::PlayerDied(ABombermanIKAPlayerController* PC)
+{
+	UE_LOG(LogBombermanIKA, Display, TEXT("Player: [%d] died"), PC->IsFirstPlayer() ? 0 : 1);
+	if (Loser == nullptr)
+	{
+		Loser = PC;
+		Loser->DisableInput(nullptr);
+		DyingTime = 1.5f;
+	}
+	else
+		Loser = nullptr; // Both players died
+}
+
+void ABombermanIKAGameMode::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (DyingTime > 0.f)
+	{
+		DyingTime -= DeltaTime;
+		if (DyingTime <= 0.f)
+		{
+			EndRound();
+		}
+	}
+	else if (RoundTime > 0.f)
+	{
+		RoundTime -= DeltaTime;
+		if (RoundTime <= 0.f)
+		{
+			EndRound();
+		}
+	}
+
+	InGameMenu->UpdateRoundTime(RoundTime);
+
+	if (bSetFocusNextTick)
+	{
+		UGameInstance* GameInstance = GetGameInstance();
+		ULocalPlayer* LocalPlayer = nullptr;
+		APlayerController* PC = nullptr;
+
+		if (InGameMenu != nullptr && !InGameMenu->HasKeyboardFocus())
+		{
+			InGameMenu->SetKeyboardFocus();
+
+			if (GameInstance != nullptr)
+			{
+				LocalPlayer = GameInstance->GetLocalPlayerByIndex(0);
+			}
+
+			if (LocalPlayer != nullptr)
+			{
+				PC = LocalPlayer->GetPlayerController(GetWorld());
+			}
+
+			if (PC != nullptr)
+			{
+				InGameMenu->SetUserFocus(PC);
+				PC->SetPause(true);
+			}
+		}
+		bSetFocusNextTick = false;
+	}
+}
+
+void ABombermanIKAGameMode::EndRound()
+{
+	ULocalPlayer* Player1 = GetGameInstance()->GetLocalPlayerByIndex(0);
+	check(Player1 != nullptr);
+	auto PC1 = Cast<ABombermanIKAPlayerController>(Player1->GetPlayerController(GetWorld()));
+	check(PC1 != nullptr);
+	ULocalPlayer* Player2 = GetGameInstance()->GetLocalPlayerByIndex(1);
+	check(Player2 != nullptr);
+	auto PC2 = Cast<ABombermanIKAPlayerController>(Player2->GetPlayerController(GetWorld()));
+	check(PC2 != nullptr);
+
+	auto FirstPC = GetGameInstance()->GetFirstLocalPlayerController(GetWorld());
+	if (Loser != nullptr)
+		InGameMenu->ShowWinner(Loser->IsFirstPlayer() ? 1 : 0);
+	else
+		InGameMenu->ShowDraw();
+
+	if (PC1 != Loser)
+	{
+		Cast<ABIKPlayerState>(PC1->GetCharacter()->PlayerState)->IncreaseScore();
+	}
+	else
+	{
+		Cast<ABIKPlayerState>(PC2->GetCharacter()->PlayerState)->IncreaseScore();
+	}
+
+	// Reset loser
+	Loser = nullptr;
+
+	// Reset round time
+	RoundTime = RoundDurationSeconds;
+
+	PC1->ResetPC();
+	PC2->ResetPC();
+	ResetBlockLevel();
+
+	PC1->SetPause(true);
+}
+
+void ABombermanIKAGameMode::ResetBlockLevel()
+{
+	// Create indestructible blocks
+	for (int32 i = 0; i < LEVEL_WIDTH; ++i)
+	{
+		for (int32 j = 0; j < LEVEL_HEIGHT; ++j)
+		{
+			FBIKLevelBlock& Block = LevelBlocksLogic[i][j];
+			if (Block.IsBombSpawned())
+			{
+				Block.Bomb->Destroy();
+				Block.Bomb = nullptr;
+			}
+			if (Block.IsDestroyable())
+			{
+				Block.DestroyableBlock->Destroy();
+				Block.DestroyableBlock = nullptr;
+			}
+			if (Block.IsOnExplosion())
+			{
+				Block.Explosion->Destroy();
+				Block.Explosion = nullptr;
+			}
+			if (Block.IsPowerUp())
+			{
+				Block.PowerUp->Destroy();
+				Block.PowerUp = nullptr;
+			}
+		}
+	}
+
+	GenerateBlockLevel();
+}
+
+void ABombermanIKAGameMode::OnApplicationLostFocus()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	ULocalPlayer* LocalPlayer = nullptr;
+	APlayerController* PC = nullptr;
+
+	if (InGameMenu != nullptr)
+	{
+		InGameMenu->InitializeMenu();
+
+		if (GameInstance != nullptr)
+		{
+			LocalPlayer = GameInstance->GetLocalPlayerByIndex(0);
+		}
+
+		if (LocalPlayer != nullptr)
+		{
+			PC = LocalPlayer->GetPlayerController(GetWorld());
+		}
+
+		if(PC != nullptr)
+			PC->SetPause(true);
+	}
+}
+
+void ABombermanIKAGameMode::OnApplicationReceivedFocus()
+{
+	if (!bSetFocusNextTick)
+		bSetFocusNextTick = true;
+
+	UGameInstance* GameInstance = GetGameInstance();
+	ULocalPlayer* LocalPlayer = nullptr;
+	APlayerController* PC = nullptr;
+
+	if (GameInstance != nullptr)
+	{
+		LocalPlayer = GameInstance->GetLocalPlayerByIndex(0);
+	}
+
+	if (LocalPlayer != nullptr)
+	{
+		PC = LocalPlayer->GetPlayerController(GetWorld());
+	}
+
+	if (PC != nullptr)
+		PC->SetPause(false);
 }

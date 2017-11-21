@@ -8,7 +8,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "BombermanIKAPlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "Materials/Material.h"
 #include "Components/SkeletalMeshComponent.h"
 

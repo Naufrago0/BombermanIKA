@@ -14,7 +14,7 @@ ABIKBombActor::ABIKBombActor()
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg, int32 BombBlockRadiusArg)
+void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg, int32 BombBlockRadiusArg, float TimeToExplosionSeconds)
 {
 	check(LevelBlockArg != nullptr);
 	auto BIKCharacter = Cast<ABombermanIKACharacter>(Instigator);
@@ -45,6 +45,8 @@ void ABIKBombActor::ConfigureBomb(struct FBIKLevelBlock* LevelBlockArg, int32 Bo
 
 void ABIKBombActor::Tick(float DeltaSeconds)
 {
+	Super::Tick(DeltaSeconds);
+
 	if (RemainingSeconds > 0.f)
 	{
 		RemainingSeconds -= DeltaSeconds;

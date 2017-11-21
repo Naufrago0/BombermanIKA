@@ -13,11 +13,13 @@ public:
 
 	ABIKExplosionActor();
 
-	void Tick(float DeltaTime) override;
+	void Tick(float DeltaSeconds) override;
 
 	void ConfigureExplosion(struct FBIKLevelBlock* LevelBlock, const float DelaySecondsArg, const float ExplosionSecondsArg);
 
 	FORCEINLINE void SetExplosionSeconds(const float ExplosionSecondsArg) { ExplosionSeconds = ExplosionSecondsArg; }
+
+	FORCEINLINE void DisableDamage() { DamageEnabled = false; }
 
 private:
 
@@ -32,4 +34,7 @@ private:
 
 	/** Time the explosion will last*/
 	float ExplosionSeconds;
+
+	/** Only If true the explosion makes damage */
+	bool DamageEnabled;
 };

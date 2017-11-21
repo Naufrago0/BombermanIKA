@@ -16,5 +16,8 @@ public:
 	 * Overriden InputKey method to pass keyboard input to all local player controllers and allow "couch" multiplayer to work
 	 */
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent EventType, float AmountDepressed = 1.f, bool bGamepad = false) override;
+
+	virtual void LostFocus(FViewport* Viewport) override;
+	virtual void ReceivedFocus(FViewport* Viewport) override;
 };
 
